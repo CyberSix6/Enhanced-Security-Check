@@ -1,0 +1,70 @@
+# Log File
+$LogFile = "$env:USERPROFILE\Desktop\Security_Checks.log"
+Add-Content $LogFile "Security and System Health Check"
+Add-Content $LogFile "=================================="
+Add-Content $LogFile "Date and Time: $(Get-Date)"
+Add-Content $LogFile ""
+
+# Open log file in Notepad
+Start-Process notepad.exe $LogFile
+
+Function LogStep {
+    param (
+        [string]$Message
+    )
+    Write-Host $Message -ForegroundColor Green
+    Add-Content $LogFile $Message
+    Add-Content $LogFile ""
+}
+
+# 1. netstat -anoq
+LogStep "[1/12] Running: netstat -anoq"
+netstat -anoq | Out-String | Add-Content $LogFile
+
+# 2. netsh advfirewall show allprofiles
+LogStep "[2/12] Running: netsh advfirewall show allprofiles"
+netsh advfirewall show allprofiles | Out-String | Add-Content $LogFile
+
+# 3. dir /s /a:h
+LogStep "[3/12] Running: dir /s /a:h"
+dir /s /a:h | Out-String | Add-Content $LogFile
+
+# 4. wevtutil qe security /f:text /c:10
+LogStep "[4/12] Running: wevtutil qe security /f:text /c:10"
+wevtutil qe security /f:text /c:10 2>&1 | Out-String | Add-Content $LogFile
+
+# 5. Windows Defender Status
+LogStep "[5/12] Running: Get-MpComputerStatus"
+Get-MpComputerStatus | Out-String | Add-Content $LogFile
+
+# 6. Check for Suspicious Startup Entries
+LogStep "[6/12] Running: Suspicious Startup Entries"
+Get-CimInstance Win32_StartupCommand | Select-Object Name, Command, User | Out-String | Add-Content $LogFile
+
+# 7. Check for Unpatched Updates
+LogStep "[7/12] Running: Unpatched Updates"
+wmic qfe list | Out-String | Add-Content $LogFile
+
+# 8. Check for Active Listening Ports
+LogStep "[8/12] Running: Active Listening Ports"
+Get-NetTCPConnection | Where-Object { $_.State -eq 'Listen' } | Select-Object LocalAddress, LocalPort, OwningProcess | Out-String | Add-Content $LogFile
+
+# 9. Check for Unauthorized Users in Administrators Group
+LogStep "[9/12] Running: Unauthorized Users in Administrators Group"
+net localgroup administrators | Out-String | Add-Content $LogFile
+
+# 10. Audit Policy Settings
+LogStep "[10/12] Running: Audit Policy Settings"
+auditpol /get /category:* | Out-String | Add-Content $LogFile
+
+# 11. Scheduled Tasks
+LogStep "[11/12] Running: Scheduled Tasks"
+Get-ScheduledTask | Select-Object TaskName, State, Actions | Out-String | Add-Content $LogFile
+
+# 12. Check System Uptime
+LogStep "[12/12] Running: System Uptime"
+(Get-Date) - (gcim Win32_OperatingSystem).LastBootUpTime | Out-String | Add-Content $LogFile
+
+# Completion
+LogStep "Security checks completed. Logs saved to $LogFile."
+Write-Host "All checks are complete! Review the log file in Notepad."
